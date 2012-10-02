@@ -115,14 +115,30 @@ JustGage = function(config) {
     
     // refreshAnimationType : string
     // type of refresh animation (linear, >, <,  <>, bounce) 
-    refreshAnimationType : (config.refreshAnimationType) ? config.refreshAnimationType : ">"
+    refreshAnimationType : (config.refreshAnimationType) ? config.refreshAnimationType : ">",
+
+    // markerValue : int
+    // value for marker on gauge
+    markerValue : (config.markerValue) ? config.markerValue : null,
+
+    // markerText : string
+    // text for marker on gauge
+    markerText : (config.markerText) ? config.markerText : null,
+
+    // markerFontColor : string
+    // color to use for marker text
+    markerFontColor : (config.markerFontColor) ? config.markerFontColor : "#b3b3b3"
   };
   
   // overflow values
   if (config.value > this.config.max) this.config.value = this.config.max; 
   if (config.value < this.config.min) this.config.value = this.config.min;
   this.originalValue = config.value;
-  
+
+  // overflow marker values
+  if (config.markerValue > this.config.max) this.config.markerValue = this.config.max;
+  if (config.markerValue < this.config.min) this.config.markerValue = this.config.min;
+
   // canvas
   this.canvas = Raphael(this.config.id, "100%", "100%");
   
@@ -171,7 +187,13 @@ JustGage = function(config) {
   var maxFontSize = ((widgetH / 16) > 10) ? (widgetH / 16) : 10;
   var maxX = dx + widgetW - (widgetW / 10) - (widgetW / 6.666666666666667 * this.config.gaugeWidthScale) / 2 ;
   var maxY = dy + widgetH / 1.126760563380282;
-  
+
+  // marker
+  var markerFontSize = ((widgetH / 24) > 8) ? (widgetH / 24) : 8;
+
+  // markerSize
+  var markerSize = ((widgetW / 40) > 5) ? (widgetW / 40) : 5;
+
   // parameters
   this.params  = {
     canvasW : canvasW,
@@ -194,7 +216,9 @@ JustGage = function(config) {
     minY : minY,
     maxFontSize : maxFontSize,
     maxX : maxX,
-    maxY : maxY
+    maxY : maxY,
+    markerFontSize : markerFontSize,
+    markerSize : markerSize
   };
   
   // pki - custom attribute for generating gauge paths
@@ -221,7 +245,7 @@ JustGage = function(config) {
       path += "z ";
       return { path: path };
   }  
-  
+
   // gauge
   this.gauge = this.canvas.path().attr({
     "stroke": "none",
@@ -315,7 +339,11 @@ JustGage = function(config) {
   this.level.animate({pki: [this.config.value, this.config.min, this.config.max, this.params.widgetW, this.params.widgetH,  this.params.dx, this.params.dy, this.config.gaugeWidthScale]},  this.config.startAnimationTime, this.config.startAnimationType);
   
   this.txtValue.animate({"fill-opacity":"1"}, this.config.startAnimationTime, this.config.startAnimationType); 
-  this.txtLabel.animate({"fill-opacity":"1"}, this.config.startAnimationTime, this.config.startAnimationType);  
+  this.txtLabel.animate({"fill-opacity":"1"}, this.config.startAnimationTime, this.config.startAnimationType);
+
+  if (this.config.markerValue) {
+      this.drawMarker();
+  }
 };
 
 /** Refresh gauge level */
@@ -383,6 +411,34 @@ JustGage.prototype.generateShadow = function(svg, defs) {
     if (this.config.showInnerShadow == true) {
       this.canvas.canvas.childNodes[2].setAttribute("filter", "url(#" + this.config.id + "-inner-shadow)");
       this.canvas.canvas.childNodes[3].setAttribute("filter", "url(#" + this.config.id + "-inner-shadow)");
+    }
+}
+
+/** Draw marker triangle & optional text **/
+JustGage.prototype.drawMarker = function() {
+    var alpha = (1 - (this.config.markerValue - this.config.min) / (this.config.max - this.config.min)) * Math.PI ,
+        Ro = this.params.widgetW / 2 - this.params.widgetW / 10,
+        Cy = this.params.widgetH / 1.25 + this.params.dy,
+        Xo = this.params.widgetW / 2 + this.params.dx + Ro * Math.cos(alpha),
+        Yo = this.params.widgetH - (this.params.widgetH - Cy) + this.params.dy - Ro * Math.sin(alpha),
+        angle = 90.0 - (alpha / Math.PI * 180.0);
+
+    this.markerTriangle = this.canvas.path(
+        "M " + Math.floor(Xo - this.params.markerSize) + " " + Math.floor(Yo - this.params.markerSize) +
+        " L " + Math.floor(Xo + this.params.markerSize) + " " + Math.floor(Yo - this.params.markerSize) +
+        " L " + Math.floor(Xo) + " " + Math.floor(Yo + this.params.markerSize) + "Z"
+    ).attr({fill: "#ffffff", stroke: 0});
+    this.markerTriangle.rotate(angle, Xo, Yo);
+
+    if (this.config.markerText) {
+        var Ro = this.params.widgetW / 2 - this.params.widgetW / 14,
+            Cy = this.params.widgetH / 1.25 + this.params.dy,
+            Xo = this.params.widgetW / 2 + this.params.dx + Ro * Math.cos(alpha),
+            Yo = this.params.widgetH - (this.params.widgetH - Cy) + this.params.dy - Ro * Math.sin(alpha),
+            angle = 90.0 - (alpha / Math.PI * 180.0);
+
+        var attr = { 'font-family': 'Arial', 'font-size': this.params.markerFontSize, 'text-anchor':'middle', 'fill': this.config.markerFontColor };
+        this.txtMarkerLabel = this.canvas.text(Xo, Yo, this.config.markerText).attr(attr).rotate(angle);
     }
 }
 
